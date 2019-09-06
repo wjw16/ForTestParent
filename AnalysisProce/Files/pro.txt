@@ -1,0 +1,50 @@
+CREATE OR REPLACE FUNCTION "dbo"."bid_erp_hospital_q"("datajson_" varchar)
+  RETURNS "pg_catalog"."jsonb" AS $BODY$
+  DECLARE sql_  varchar(4000);
+					rec record;
+					pageindex_ int4;
+					pagesize_ int4;
+					orderby_ varchar;
+					yybh_ VARCHAR;
+					orgcode_ int4;
+					action_ varchar;
+					customname_ varchar;
+					custom_id_ varchar;
+					agentid_ int4;
+  BEGIN
+ 	SELECT * into rec FROM jsonb_array_elements(rbc.pub_tojson(datajson_));
+	pageindex_=rec.value ->>'page';
+	pagesize_=rec.value ->>'rows';
+	orderby_ := rec.value->>'orderby';
+	yybh_:=rec.value->>'yybh';
+	custom_id_:=rec.value->>'customid';
+	orgcode_:=rec.value->>'orgcode';
+	action_:=rec.value->>'action';
+	customname_:=rec.value->>'customname';
+	agentid_:=rec.value->>'agentid';
+  sql_='select distinct a.org_id as orgid,a.custom_id as customid,
+         a.custom_name as customname,b.agentid agentid,b.agentname as agentname,
+        b.salerid as salerid,b.salername as salername,a.custom_no as customno,b.agentno,b.employeeno as salerno,
+   		count(1) over() as zrow
+        from base_customer_erp a  left join base_custom_to_saler_erp b on a.custom_id=b.customid::varchar
+        and a.org_id=b.entryid where 1=1';
+	if(yybh_ is not null and  yybh_ !='') then
+			sql_=sql_||' and a.custom_id like ''%'||yybh_||'%''';
+	 end if;
+	 if(custom_id_ is not null and  custom_id_ !='') then
+			sql_=sql_||' and a.custom_id like ''%'||custom_id_||'%''';
+	 end if;
+	if(customname_ is not null and  customname_!='') then
+			sql_=sql_||' and a.custom_name like ''%'||customname_||'%''';
+	 end if;
+  if(orgcode_ is not null) then
+			sql_=sql_||' and a.org_id ='|| orgcode_||'';
+		end if;
+	if(agentid_ is not null) then
+		sql_=sql_||' and b.agentid ='|| agentid_||'';
+	end if;
+	 raise notice '%',sql_;
+	return rbc.pub_exec_sql(sql_,orderby_,pageindex_,pagesize_);
+END$BODY$
+  LANGUAGE plpgsql VOLATILE
+  COST 100
